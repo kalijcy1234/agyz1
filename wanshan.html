@@ -1,0 +1,836 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>安国一中表白墙</title>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Microsoft YaHei', sans-serif;
+            -webkit-tap-highlight-color: transparent;
+        }
+        
+        body {
+            background: linear-gradient(45deg, #ff9a9e, #fad0c4, #fbc2eb, #a6c1ee);
+            background-size: 400% 400%;
+            animation: gradientBG 15s ease infinite;
+            min-height: 100vh;
+            overflow-x: hidden;
+            position: relative;
+        }
+        
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(5px);
+            z-index: -1;
+        }
+        
+        @keyframes gradientBG {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+        
+        /* 顶部导航 - 移动端专用 */
+        .mobile-header {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            background: rgba(255, 255, 255, 0.95);
+            padding: 15px;
+            z-index: 1000;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+        
+        .mobile-tabs {
+            display: flex;
+            justify-content: space-around;
+        }
+        
+        .mobile-tab {
+            padding: 10px 20px;
+            border-radius: 20px;
+            background: #f0f0f0;
+            font-weight: bold;
+            color: #666;
+        }
+        
+        .mobile-tab.active {
+            background: #ff4d94;
+            color: white;
+        }
+        
+        header {
+            text-align: center;
+            margin-bottom: 20px;
+            padding-top: 10px;
+        }
+        
+        h1 {
+            color: #ff4d94;
+            font-size: 2.2rem;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.1);
+            padding: 15px;
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 15px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            margin: 0 10px;
+        }
+        
+        .main-content {
+            display: flex;
+            gap: 20px;
+            flex: 1;
+        }
+        
+        .chat-section {
+            flex: 7;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        }
+        
+        .chat-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .online-count {
+            background: #ff85a2;
+            color: white;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+        }
+        
+        .messages-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 10px;
+            background: rgba(255, 245, 245, 0.5);
+            border-radius: 10px;
+            margin-bottom: 15px;
+            max-height: 50vh;
+        }
+        
+        .message {
+            margin-bottom: 10px;
+            padding: 10px 12px;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+            animation: fadeIn 0.3s ease;
+            word-break: break-word;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .message-sender {
+            font-weight: bold;
+            color: #ff4d94;
+            font-size: 0.9rem;
+        }
+        
+        .message-time {
+            font-size: 0.7rem;
+            color: #999;
+            margin-left: 8px;
+        }
+        
+        .message-input {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        
+        .message-input input {
+            flex: 1;
+            padding: 12px 15px;
+            border: 1px solid #ffccd5;
+            border-radius: 25px;
+            outline: none;
+            font-size: 1rem;
+            min-height: 50px;
+        }
+        
+        .message-input button {
+            background: #ff4d94;
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 25px;
+            cursor: pointer;
+            transition: background 0.3s;
+            font-weight: bold;
+            min-height: 50px;
+            white-space: nowrap;
+        }
+        
+        .message-input button:hover {
+            background: #ff3377;
+        }
+        
+        .confession-section {
+            flex: 3;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        }
+        
+        .confession-header {
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .confessions-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 10px;
+            background: rgba(255, 245, 245, 0.5);
+            border-radius: 10px;
+            margin-bottom: 15px;
+            max-height: 50vh;
+        }
+        
+        .confession {
+            margin-bottom: 15px;
+            padding: 15px;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+            position: relative;
+            animation: fadeIn 0.5s ease;
+        }
+        
+        .confession::before {
+            content: '"';
+            font-size: 2rem;
+            color: #ffccd5;
+            position: absolute;
+            top: 5px;
+            left: 10px;
+        }
+        
+        .confession-content {
+            font-style: italic;
+            margin: 5px 0 10px;
+            padding: 0 15px;
+            line-height: 1.4;
+            word-break: break-word;
+        }
+        
+        .confession-meta {
+            text-align: right;
+            font-size: 0.8rem;
+            color: #888;
+        }
+        
+        .confession-time {
+            font-size: 0.7rem;
+            color: #bbb;
+            margin-top: 5px;
+        }
+        
+        .confession-input {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        
+        .confession-input input {
+            padding: 12px 15px;
+            border: 1px solid #ffccd5;
+            border-radius: 20px;
+            outline: none;
+            font-size: 0.9rem;
+        }
+        
+        .confession-input button {
+            background: #ff4d94;
+            color: white;
+            border: none;
+            padding: 12px;
+            border-radius: 20px;
+            cursor: pointer;
+            transition: background 0.3s;
+            font-weight: bold;
+        }
+        
+        .confession-input button:hover {
+            background: #ff3377;
+        }
+        
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 15px 25px;
+            background: #ff4d94;
+            color: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+            transform: translateX(100%);
+            transition: transform 0.3s;
+            z-index: 1000;
+            max-width: 300px;
+        }
+        
+        .notification.show {
+            transform: translateX(0);
+        }
+        
+        footer {
+            text-align: center;
+            margin-top: 20px;
+            padding: 15px;
+            color: #777;
+            font-size: 0.9rem;
+            background: rgba(255, 255, 255, 0.8);
+            border-radius: 10px;
+        }
+        
+        /* 移动端响应式设计 */
+        @media (max-width: 768px) {
+            .container {
+                padding: 10px;
+                padding-top: 70px; /* 为固定头部留出空间 */
+            }
+            
+            .mobile-header {
+                display: block;
+            }
+            
+            h1 {
+                font-size: 1.8rem;
+                padding: 12px;
+                margin: 0 5px;
+            }
+            
+            .main-content {
+                flex-direction: column;
+                gap: 15px;
+            }
+            
+            .chat-section, .confession-section {
+                width: 100%;
+                border-radius: 12px;
+                padding: 12px;
+            }
+            
+            .section-hidden {
+                display: none !important;
+            }
+            
+            .messages-container, .confessions-container {
+                max-height: 40vh;
+                padding: 8px;
+            }
+            
+            .message-input {
+                flex-direction: column;
+            }
+            
+            .message-input input {
+                width: 100%;
+                min-height: 45px;
+            }
+            
+            .message-input button {
+                width: 100%;
+                min-height: 45px;
+            }
+            
+            .confession-input input {
+                min-height: 45px;
+            }
+            
+            .confession-input button {
+                min-height: 45px;
+            }
+            
+            footer {
+                margin-top: 15px;
+                padding: 12px;
+                font-size: 0.8rem;
+            }
+        }
+        
+        /* 小屏幕手机优化 */
+        @media (max-width: 480px) {
+            h1 {
+                font-size: 1.5rem;
+                padding: 10px;
+            }
+            
+            .chat-header h2, .confession-header h2 {
+                font-size: 1.2rem;
+            }
+            
+            .message {
+                padding: 8px 10px;
+                font-size: 0.9rem;
+            }
+            
+            .confession {
+                padding: 12px;
+            }
+            
+            .confession-content {
+                padding: 0 10px;
+                font-size: 0.9rem;
+            }
+            
+            .mobile-tab {
+                padding: 8px 15px;
+                font-size: 0.9rem;
+            }
+        }
+        
+        /* 滚动条样式 */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        
+        ::-webkit-scrollbar-track {
+            background: rgba(255, 204, 213, 0.3);
+            border-radius: 10px;
+        }
+        
+        ::-webkit-scrollbar-thumb {
+            background: #ffccd5;
+            border-radius: 10px;
+        }
+        
+        ::-webkit-scrollbar-thumb:hover {
+            background: #ff85a2;
+        }
+        
+        .login-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 2000;
+            justify-content: center;
+            align-items: center;
+            backdrop-filter: blur(5px);
+        }
+        
+        .login-modal.active {
+            display: flex;
+        }
+        
+        .login-content {
+            background: white;
+            padding: 25px;
+            border-radius: 20px;
+            width: 90%;
+            max-width: 400px;
+            text-align: center;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+        }
+        
+        .login-content h2 {
+            color: #ff4d94;
+            margin-bottom: 20px;
+            font-size: 1.5rem;
+        }
+        
+        .login-content input {
+            width: 100%;
+            padding: 15px;
+            margin: 10px 0;
+            border: 2px solid #ffccd5;
+            border-radius: 25px;
+            outline: none;
+            font-size: 1rem;
+        }
+        
+        .login-content button {
+            width: 100%;
+            background: #ff4d94;
+            color: white;
+            border: none;
+            padding: 15px;
+            border-radius: 25px;
+            cursor: pointer;
+            margin-top: 10px;
+            font-size: 1rem;
+            font-weight: bold;
+        }
+        
+        /* 防止移动端输入框放大 */
+        @media (max-width: 768px) {
+            input, textarea, select {
+                font-size: 16px !important; /* 防止iOS缩放 */
+            }
+        }
+        
+        /* 触摸反馈优化 */
+        button, .mobile-tab {
+            transition: all 0.2s ease;
+            -webkit-tap-highlight-color: transparent;
+        }
+        
+        button:active, .mobile-tab:active {
+            transform: scale(0.95);
+            opacity: 0.8;
+        }
+    </style>
+</head>
+<body>
+    <!-- 移动端顶部导航 -->
+    <div class="mobile-header">
+        <div class="mobile-tabs">
+            <div class="mobile-tab active" data-tab="chat">实时聊天</div>
+            <div class="mobile-tab" data-tab="confession">表白墙</div>
+        </div>
+    </div>
+    
+    <div class="container">
+        <header>
+            <h1>安国一中表白墙</h1>
+        </header>
+        
+        <div class="main-content">
+            <!-- 聊天区域 -->
+            <section class="chat-section" id="chat-section">
+                <div class="chat-header">
+                    <h2>实时聊天</h2>
+                    <div class="online-count">在线: <span id="online-count">1</span></div>
+                </div>
+                
+                <div class="messages-container" id="messages-container">
+                    <div class="message">
+                        <span class="message-sender">系统:</span> 欢迎来到安国一中表白墙聊天室！聊天内容每7天会自动清理。
+                    </div>
+                </div>
+                
+                <div class="message-input">
+                    <input type="text" id="message-input" placeholder="输入你想说的话..." aria-label="输入消息">
+                    <button id="send-message">发送</button>
+                </div>
+            </section>
+            
+            <!-- 表白墙区域 -->
+            <section class="confession-section section-hidden" id="confession-section">
+                <div class="confession-header">
+                    <h2>表白墙</h2>
+                </div>
+                
+                <div class="confessions-container" id="confessions-container">
+                    <div class="confession">
+                        <div class="confession-content">
+                            希望在这里你能找到属于自己的那份心动与勇气。
+                        </div>
+                        <div class="confession-meta">—— 安国一中表白墙</div>
+                    </div>
+                </div>
+                
+                <div class="confession-input">
+                    <input type="text" id="confession-target" placeholder="例如: 高三(5)班 张三" aria-label="表白对象">
+                    <input type="text" id="confession-content" placeholder="输入你想表白的话..." aria-label="表白内容">
+                    <button id="post-confession">发布表白</button>
+                </div>
+            </section>
+        </div>
+        
+        <footer>
+            <p>💬 聊天内容每7天清理一次 | 💖 表白墙内容每月清理一次</p>
+        </footer>
+    </div>
+    
+    <div class="notification" id="notification">消息已发送!</div>
+    
+    <div class="login-modal" id="login-modal">
+        <div class="login-content">
+            <h2>安国一中表白墙</h2>
+            <p>请输入昵称开始聊天</p>
+            <input type="text" id="username-input" placeholder="你的昵称" aria-label="输入昵称">
+            <button id="login-btn">进入聊天室</button>
+        </div>
+    </div>
+
+    <script>
+        // Firebase配置 - 您需要替换为自己的配置
+        const firebaseConfig = {
+            apiKey: "YOUR_API_KEY",
+            authDomain: "your-project-id.firebaseapp.com",
+            databaseURL: "https://your-project-id-default-rtdb.firebaseio.com",
+            projectId: "your-project-id",
+            storageBucket: "your-project-id.appspot.com",
+            messagingSenderId: "123456789",
+            appId: "YOUR_APP_ID"
+        };
+        
+        // 初始化Firebase
+        firebase.initializeApp(firebaseConfig);
+        const database = firebase.database();
+        
+        // 全局变量
+        let currentUser = "匿名用户";
+        let onlineUsers = {};
+        let userId = null;
+        
+        document.addEventListener('DOMContentLoaded', function() {
+            const messagesContainer = document.getElementById('messages-container');
+            const confessionsContainer = document.getElementById('confessions-container');
+            const messageInput = document.getElementById('message-input');
+            const sendMessageBtn = document.getElementById('send-message');
+            const confessionTarget = document.getElementById('confession-target');
+            const confessionContent = document.getElementById('confession-content');
+            const postConfessionBtn = document.getElementById('post-confession');
+            const notification = document.getElementById('notification');
+            const onlineCountElement = document.getElementById('online-count');
+            const loginModal = document.getElementById('login-modal');
+            const usernameInput = document.getElementById('username-input');
+            const loginBtn = document.getElementById('login-btn');
+            const mobileTabs = document.querySelectorAll('.mobile-tab');
+            const chatSection = document.getElementById('chat-section');
+            const confessionSection = document.getElementById('confession-section');
+            
+            // 显示登录模态框
+            loginModal.classList.add('active');
+            
+            // 移动端标签切换
+            mobileTabs.forEach(tab => {
+                tab.addEventListener('click', function() {
+                    const tabName = this.getAttribute('data-tab');
+                    
+                    // 更新活跃标签
+                    mobileTabs.forEach(t => t.classList.remove('active'));
+                    this.classList.add('active');
+                    
+                    // 显示对应内容
+                    if (tabName === 'chat') {
+                        chatSection.classList.remove('section-hidden');
+                        confessionSection.classList.add('section-hidden');
+                    } else {
+                        chatSection.classList.add('section-hidden');
+                        confessionSection.classList.remove('section-hidden');
+                    }
+                });
+            });
+            
+            // 登录功能
+            function login() {
+                const username = usernameInput.value.trim();
+                if (username) {
+                    currentUser = username;
+                    loginModal.classList.remove('active');
+                    showNotification('欢迎 ' + username + '!');
+                    
+                    // 生成用户ID
+                    userId = generateUserId();
+                    
+                    // 用户上线
+                    const userRef = database.ref('onlineUsers/' + userId);
+                    userRef.set({
+                        name: username,
+                        timestamp: Date.now()
+                    });
+                    
+                    // 监听在线用户变化
+                    database.ref('onlineUsers').on('value', function(snapshot) {
+                        onlineUsers = snapshot.val() || {};
+                        onlineCountElement.textContent = Object.keys(onlineUsers).length;
+                        
+                        // 清理过期用户（5分钟无活动）
+                        const now = Date.now();
+                        for (const [id, user] of Object.entries(onlineUsers)) {
+                            if (now - user.timestamp > 5 * 60 * 1000) {
+                                database.ref('onlineUsers/' + id).remove();
+                            }
+                        }
+                    });
+                    
+                    // 监听消息
+                    database.ref('messages').orderByChild('timestamp').limitToLast(100).on('child_added', function(snapshot) {
+                        const message = snapshot.val();
+                        addMessage(message.sender, message.text, formatTime(message.timestamp));
+                    });
+                    
+                    // 监听表白
+                    database.ref('confessions').orderByChild('timestamp').limitToLast(50).on('child_added', function(snapshot) {
+                        const confession = snapshot.val();
+                        addConfession(confession.target, confession.content, formatTime(confession.timestamp));
+                    });
+                    
+                    // 定期更新用户活动时间
+                    setInterval(() => {
+                        if (userId) {
+                            database.ref('onlineUsers/' + userId).update({
+                                timestamp: Date.now()
+                            });
+                        }
+                    }, 60000); // 每分钟更新一次
+                }
+            }
+            
+            loginBtn.addEventListener('click', login);
+            usernameInput.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') login();
+            });
+            
+            // 发送消息
+            sendMessageBtn.addEventListener('click', sendMessage);
+            messageInput.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') sendMessage();
+            });
+            
+            function sendMessage() {
+                const message = messageInput.value.trim();
+                if (!message) return;
+                
+                // 保存消息到Firebase
+                database.ref('messages').push({
+                    sender: currentUser,
+                    text: message,
+                    timestamp: Date.now()
+                });
+                
+                messageInput.value = '';
+                showNotification('消息已发送!');
+                
+                // 移动端自动滚动到底部
+                setTimeout(() => {
+                    messagesContainer.scrollTop = messagesContainer.scrollHeight;
+                }, 100);
+            }
+            
+            // 发布表白
+            postConfessionBtn.addEventListener('click', postConfession);
+            confessionContent.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') postConfession();
+            });
+            
+            function postConfession() {
+                const target = confessionTarget.value.trim();
+                const content = confessionContent.value.trim();
+                
+                if (!target || !content) {
+                    showNotification('请填写完整的表白信息!');
+                    return;
+                }
+                
+                // 验证格式：某某班谁谁谁
+                const pattern = /^.+\班\s*.+$/;
+                if (!pattern.test(target)) {
+                    showNotification('请使用"某某班 谁谁谁"的格式!');
+                    return;
+                }
+                
+                // 保存表白到Firebase
+                database.ref('confessions').push({
+                    target: target,
+                    content: content,
+                    timestamp: Date.now()
+                });
+                
+                confessionTarget.value = '';
+                confessionContent.value = '';
+                showNotification('表白已发布!');
+            }
+            
+            // 添加消息到界面
+            function addMessage(sender, content, time) {
+                const messageElement = document.createElement('div');
+                messageElement.className = 'message';
+                messageElement.innerHTML = `
+                    <span class="message-sender">${sender}:</span> 
+                    ${content}
+                    <span class="message-time">${time}</span>
+                `;
+                messagesContainer.appendChild(messageElement);
+                messagesContainer.scrollTop = messagesContainer.scrollHeight;
+            }
+            
+            // 添加表白到界面
+            function addConfession(target, content, time) {
+                const confessionElement = document.createElement('div');
+                confessionElement.className = 'confession';
+                confessionElement.innerHTML = `
+                    <div class="confession-content">${content}</div>
+                    <div class="confession-meta">—— to ${target}</div>
+                    <div class="confession-time">${time}</div>
+                `;
+                confessionsContainer.appendChild(confessionElement);
+                confessionsContainer.scrollTop = confessionsContainer.scrollHeight;
+            }
+            
+            // 显示通知
+            function showNotification(text) {
+                notification.textContent = text;
+                notification.classList.add('show');
+                
+                setTimeout(() => {
+                    notification.classList.remove('show');
+                }, 2000);
+            }
+            
+            // 生成随机用户ID
+            function generateUserId() {
+                return Math.random().toString(36).substring(2) + Date.now().toString(36);
+            }
+            
+            // 格式化时间
+            function formatTime(timestamp) {
+                const date = new Date(timestamp);
+                return date.getHours().toString().padStart(2, '0') + ':' + 
+                       date.getMinutes().toString().padStart(2, '0');
+            }
+            
+            // 页面离开时清理在线状态
+            window.addEventListener('beforeunload', function() {
+                if (userId) {
+                    database.ref('onlineUsers/' + userId).remove();
+                }
+            });
+            
+            // 模拟定期清理功能
+            setInterval(() => {
+                addMessage('系统', '温馨提示: 聊天内容每7天会自动清理，表白墙内容每月清理。', formatTime(Date.now()));
+            }, 300000);
+        });
+    </script>
+</body>
+</html>
